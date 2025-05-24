@@ -86,7 +86,7 @@ export function TransactionDetail({
 
     const updatedTransaction: Transaction = {
       ...transaction,
-      date: editDate,
+      date: editDate, // Use the edited date
       amount: grossAmount,
       netAmount: netAmountValue,
       type: editType,
