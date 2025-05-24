@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, Info } from "lucide-react"
-import { getUserPreferences, saveUserPreferences } from "@/lib/data-sync"
+import { getUserPreferences, saveUserPreferences, syncTransactions } from "@/lib/data-sync"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { calculateGrossFromNet } from "@/lib/tax-calculator"
 
 export default function SettingsPage() {
   const [businessName, setBusinessName] = useState("")
@@ -38,12 +39,62 @@ export default function SettingsPage() {
     loadPreferences()
   }, [])
 
+  const recalculateAllTransactions = async (newAnnualIncome: number, newProvince: string) => {
+    // Get current transactions from localStorage
+    const savedTransactions = localStorage.getItem("transactions")
+    if (!savedTransactions) return
+
+    try {
+      const currentTransactions = JSON.parse(savedTransactions, (key, value) => {
+        if (key === "date" && value) {
+          return new Date(value)
+        }
+        return value
+      })
+
+      // Recalculate each transaction with new annual income
+      const recalculatedTransactions = currentTransactions.map((transaction: any) => {
+        if (transaction.type === "owner_salary") {
+          const { grossAmount, federalTax, provincialTax, cppPayment } = calculateGrossFromNet(
+            transaction.netAmount,
+            newAnnualIncome,
+            newProvince,
+          )
+
+          return {
+            ...transaction,
+            amount: grossAmount,
+            federalTax,
+            provincialTax,
+            cppPayment,
+          }
+        }
+        return transaction
+      })
+
+      // Save back to localStorage
+      localStorage.setItem("transactions", JSON.stringify(recalculatedTransactions))
+
+      // Sync with Supabase
+      await syncTransactions(recalculatedTransactions)
+
+      return true
+    } catch (error) {
+      console.error("Error recalculating transactions:", error)
+      return false
+    }
+  }
+
   const handleSaveSettings = async () => {
     setSaveStatus("saving")
 
     try {
       // Get current preferences first
       const currentPrefs = await getUserPreferences()
+
+      // Check if annual income or province changed
+      const annualIncomeChanged = currentPrefs.annualIncome !== annualIncome
+      const provinceChanged = currentPrefs.province !== province
 
       // Update with new values
       const updatedPrefs = {
@@ -56,6 +107,14 @@ export default function SettingsPage() {
 
       // Save to Supabase
       await saveUserPreferences(updatedPrefs)
+
+      // Recalculate all transactions if annual income or province changed
+      if ((annualIncomeChanged || provinceChanged) && annualIncome) {
+        const recalculated = await recalculateAllTransactions(annualIncome, province)
+        if (recalculated) {
+          console.log("All transactions recalculated with new annual income/province")
+        }
+      }
 
       setSaveStatus("success")
 
@@ -143,6 +202,15 @@ export default function SettingsPage() {
             />
             <p className="text-sm text-muted-foreground">Used to calculate appropriate tax rates</p>
           </div>
+          {annualIncome && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Changing your annual income will automatically recalculate all existing owner salary transactions to use
+                the correct tax brackets.
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
         <CardFooter className="flex justify-between">
           <Alert className={saveStatus === "success" ? "bg-green-50 text-green-800 border-green-200" : "hidden"}>
