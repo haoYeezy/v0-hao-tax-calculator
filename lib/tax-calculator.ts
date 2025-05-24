@@ -125,13 +125,13 @@ export const calculateGrossFromNet = (
   totalDeductions: number
 } => {
   // Get tax rates based on annual income
-  const { effectiveFederalRate, effectiveProvincialRate } = calculateMarginalTaxRate(annualIncome, province)
+  const { federalRate, provincialRate } = calculateMarginalTaxRate(annualIncome, province)
 
   // Calculate CPP rate (as a percentage of gross)
   const cppRate = CPP_RATE_SELF_EMPLOYED_2024
 
   // Combined deduction rate
-  const totalDeductionRate = effectiveFederalRate + effectiveProvincialRate + cppRate
+  const totalDeductionRate = federalRate + provincialRate + cppRate
 
   // Calculate gross amount
   // Formula: net = gross - (gross * totalDeductionRate)
@@ -139,8 +139,8 @@ export const calculateGrossFromNet = (
   const grossAmount = netAmount / (1 - totalDeductionRate)
 
   // Calculate individual deductions
-  const federalTax = grossAmount * effectiveFederalRate
-  const provincialTax = grossAmount * effectiveProvincialRate
+  const federalTax = grossAmount * federalRate
+  const provincialTax = grossAmount * provincialRate
   const cppPayment = grossAmount * cppRate
   const totalDeductions = federalTax + provincialTax + cppPayment
 

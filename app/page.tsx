@@ -849,7 +849,10 @@ export default function TransactionTracker() {
                                   </p>
                                   <div className="border-t pt-1 mt-1">
                                     <p className="flex justify-between">
-                                      <span>Federal Tax:</span>
+                                      <span>
+                                        Federal Tax (based on ${userPreferences.annualIncome.toLocaleString()} annual
+                                        income):
+                                      </span>
                                       <span>${federalTax.toFixed(2)}</span>
                                     </p>
                                     <p className="flex justify-between">
@@ -867,6 +870,10 @@ export default function TransactionTracker() {
                                       <span>${totalDeductions.toFixed(2)}</span>
                                     </p>
                                   </div>
+                                  <p className="text-xs text-muted-foreground mt-2">
+                                    Tax rates are based on your projected annual income, not this individual
+                                    transaction.
+                                  </p>
                                 </>
                               )
                             })()}

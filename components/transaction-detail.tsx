@@ -186,25 +186,31 @@ export function TransactionDetail({
                     <h3 className="text-lg font-medium">Tax Calculation</h3>
                     <div className="p-4 bg-muted rounded-lg space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-sm">Federal Tax ({(federalRate * 100).toFixed(1)}%)</span>
+                        <span className="text-sm">
+                          Federal Tax (based on annual income of $
+                          {userPreferences.annualIncome?.toLocaleString() || "unknown"})
+                        </span>
                         <span>${transaction.federalTax.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm">
-                          Provincial Tax ({userPreferences.province || "ON"}) ({(provincialRate * 100).toFixed(1)}%)
-                        </span>
+                        <span className="text-sm">Provincial Tax ({userPreferences.province || "ON"})</span>
                         <span>${transaction.provincialTax.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm">CPP ({(cppRate * 100).toFixed(1)}%)</span>
+                        <span className="text-sm">CPP (11.9%)</span>
                         <span>${transaction.cppPayment.toFixed(2)}</span>
                       </div>
                       <div className="border-t pt-2 mt-2 flex justify-between font-medium">
-                        <span>Total Deductions ({(totalRate * 100).toFixed(1)}%)</span>
+                        <span>Total Deductions</span>
                         <span>
                           ${(transaction.federalTax + transaction.provincialTax + transaction.cppPayment).toFixed(2)}
                         </span>
                       </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      <p>
+                        Tax rates are calculated based on your projected annual income, not this individual transaction.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -300,7 +306,10 @@ export function TransactionDetail({
                               </p>
                               <div className="border-t pt-1 mt-1">
                                 <p className="flex justify-between">
-                                  <span>Federal Tax:</span>
+                                  <span>
+                                    Federal Tax (based on ${userPreferences.annualIncome.toLocaleString()} annual
+                                    income):
+                                  </span>
                                   <span>${federalTax.toFixed(2)}</span>
                                 </p>
                                 <p className="flex justify-between">
@@ -318,6 +327,9 @@ export function TransactionDetail({
                                   <span>${totalDeductions.toFixed(2)}</span>
                                 </p>
                               </div>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Tax rates are based on your projected annual income, not this individual transaction.
+                              </p>
                             </>
                           )
                         })()}
