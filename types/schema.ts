@@ -5,7 +5,8 @@ export type Currency = "CAD" | "USD"
 export interface Transaction {
   id: string
   date: Date
-  amount: number
+  amount: number // This is now the gross amount
+  netAmount: number // This is the net amount (take-home pay)
   type: CorporateTransactionType
   notes: string
   federalTax: number
@@ -37,4 +38,8 @@ export interface UserPreferences {
   lastTransactionDate?: Date
   lastExpenseDate?: Date
   lastIncomeDate?: Date
+  businessName?: string
+  employeeName?: string
+  province?: string
+  annualIncome?: number
 }

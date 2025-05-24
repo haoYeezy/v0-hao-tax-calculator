@@ -105,11 +105,11 @@ body {
 
 .circular-text-container {
   position: absolute;
-  top: 16px;
+  top: -10px; /* Change from 16px to -10px to move it up */
   left: 50%;
   transform: translateX(-50%);
-  width: 160px;
-  height: 160px;
+  width: 200px; /* Increase from 160px to 200px */
+  height: 200px; /* Increase from 160px to 200px */
   pointer-events: none;
 }
 

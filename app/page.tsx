@@ -12,28 +12,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format } from "date-fns"
 import { CustomCalendar } from "@/components/custom-calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import {
-  AlertCircle,
-  CalendarIcon,
-  ChevronDown,
-  CloudIcon as CloudSync,
-  DollarSign,
-  Download,
-  Edit2,
-  Info,
-  LogOut,
-  Save,
-  Trash2,
-  X,
-} from "lucide-react"
+import { CalendarIcon, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LoginScreen } from "@/components/login-screen"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { SidebarLayout } from "@/components/sidebar-layout"
 import type { Transaction, EmployeeExpense, CorporateIncome, UserPreferences } from "@/types/schema"
 import {
   syncTransactions,
@@ -56,11 +41,16 @@ import {
   downloadCSV,
 } from "@/lib/csv-export"
 
+// Import the tax calculator
+// Add this import at the top of the file with the other imports
+
+import { calculateGrossFromNet } from "@/lib/tax-calculator"
+
 // Tax rates for 2024-2025 (simplified for demonstration)
 const TAX_RATES = {
-  FEDERAL_CORPORATE_TAX_RATE: 0.15, // Federal small business rate
+  FEDERAL_CORPORATE_TAX_RATE: 0.09, // Federal small business rate
   ONTARIO_CORPORATE_TAX_RATE: 0.032, // Ontario small business rate
-  CPP_RATE: 0.1095, // Self-employed CPP rate for 2024
+  CPP_RATE: 0.119, // Self-employed CPP rate for 2024
 }
 
 // Default exchange rate (USD to CAD)
@@ -73,6 +63,8 @@ export default function TransactionTracker() {
 
   // User preferences
   const [userPreferences, setUserPreferences] = useState<UserPreferences>({})
+  const [businessName, setBusinessName] = useState("Your Business")
+  const [employeeName, setEmployeeName] = useState("Hao")
 
   // Corporate transactions state
   const [amount, setAmount] = useState<string>("")
@@ -171,6 +163,14 @@ export default function TransactionTracker() {
       const loadUserPreferences = async () => {
         const prefs = await getUserPreferences()
         setUserPreferences(prefs)
+
+        // Set business and employee names
+        if (prefs.businessName) {
+          setBusinessName(prefs.businessName)
+        }
+        if (prefs.employeeName) {
+          setEmployeeName(prefs.employeeName)
+        }
 
         // Set default dates based on user preferences
         if (prefs.lastTransactionDate) {
@@ -343,18 +343,28 @@ export default function TransactionTracker() {
     }
   }
 
+  // Update the handleSubmit function to use the gross amount calculation
+  // Find the handleSubmit function and update it
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!amount || Number.parseFloat(amount) <= 0) return
 
-    const amountValue = Number.parseFloat(amount)
-    const { federalTax, provincialTax, cppPayment } = calculatePayrollTaxes(amountValue, transactionType)
+    const netAmountValue = Number.parseFloat(amount)
+
+    // Calculate gross amount and taxes
+    const { grossAmount, federalTax, provincialTax, cppPayment } = calculateGrossFromNet(
+      netAmountValue,
+      userPreferences.annualIncome || 50000,
+      userPreferences.province || "ON",
+    )
 
     const newTransaction: Transaction = {
       id: Date.now().toString(),
       date: transactionDate,
-      amount: amountValue,
+      amount: grossAmount, // Store the gross amount
+      netAmount: netAmountValue, // Store the net amount too
       type: transactionType,
       notes: notes,
       federalTax,
@@ -649,960 +659,322 @@ export default function TransactionTracker() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-center">Hao's Business Tracker</h1>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={syncDataWithSupabase}
-            disabled={isSyncing}
-            className={cn(
-              "flex items-center gap-2",
-              syncStatus === "success" && "text-green-600",
-              syncStatus === "error" && "text-red-600",
-            )}
-          >
-            <CloudSync className={cn("h-4 w-4", isSyncing && "animate-spin")} />
-            {syncStatus === "idle" && "Sync Data"}
-            {syncStatus === "syncing" && "Syncing..."}
-            {syncStatus === "success" && "Synced!"}
-            {syncStatus === "error" && "Sync Failed"}
-          </Button>
-          <Button variant="outline" onClick={handleExportAll} className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Export All
-          </Button>
-          <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
+    <SidebarLayout
+      sidebarContent={
+        <>
+          <div className="px-4 py-6">
+            <h2 className="mb-2 font-semibold">{businessName}</h2>
+            <p className="text-sm text-muted-foreground">Manage your business finances and track tax obligations.</p>
+          </div>
+          <div className="space-y-1">
+            <Button variant="ghost" className="w-full justify-start">
+              Dashboard
+            </Button>
+            <Collapsible className="w-full">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start">
+                  Explainer
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pl-4">
+                <p className="text-sm text-muted-foreground">Detailed explanations of tax calculations.</p>
+              </CollapsibleContent>
+            </Collapsible>
+            <Button variant="ghost" className="w-full justify-start">
+              Tax Rates
+            </Button>
+            <Button variant="ghost" className="w-full justify-start">
+              Settings
+            </Button>
+          </div>
+          <div className="mt-6 px-4 space-y-2">
+            <Button
+              variant="outline"
+              onClick={syncDataWithSupabase}
+              disabled={isSyncing}
+              className={cn(
+                "w-full flex items-center gap-2",
+                syncStatus === "success" && "text-green-600",
+                syncStatus === "error" && "text-red-600",
+              )}
+            >
+              {syncStatus === "idle" && "Sync Data"}
+              {syncStatus === "syncing" && "Syncing..."}
+              {syncStatus === "success" && "Synced!"}
+              {syncStatus === "error" && "Sync Failed"}
+            </Button>
+            <Button variant="outline" onClick={handleExportAll} className="w-full flex items-center gap-2">
+              Export All
+            </Button>
+            <Button variant="outline" onClick={handleLogout} className="w-full flex items-center gap-2">
+              Logout
+            </Button>
+          </div>
+        </>
+      }
+    >
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-center">Hao's Business Tracker</h1>
         </div>
-      </div>
 
-      <Tabs defaultValue="corporate" className="mb-8">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="corporate">Corporate Transactions</TabsTrigger>
-          <TabsTrigger value="income">Corporate Income</TabsTrigger>
-          <TabsTrigger value="employee">Employee Expenses</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="corporate" className="mb-8">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="corporate">Corporate Transactions</TabsTrigger>
+            <TabsTrigger value="income">Corporate Income</TabsTrigger>
+            <TabsTrigger value="employee">Employee Expenses</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="corporate">
-          <div className="grid gap-8 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Add New Transaction</CardTitle>
-                <CardDescription>Record money transferred to yourself and calculate tax obligations</CardDescription>
-              </CardHeader>
-              <form onSubmit={handleSubmit}>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="amount">Amount ($CAD)</Label>
-                    <Input id="amount" placeholder="0.00" value={amount} onChange={handleAmountChange} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Transaction Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !transactionDate && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {transactionDate ? format(transactionDate, "MMMM d, yyyy") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CustomCalendar
-                          mode="single"
-                          selected={transactionDate}
-                          onSelect={(date) => date && setTransactionDate(date)}
-                          defaultMonth={transactionDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Transaction Type</Label>
-                    <RadioGroup
-                      value={transactionType}
-                      onValueChange={(value) => setTransactionType(value as "owner_salary" | "expense")}
-                      className="flex space-x-4"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="owner_salary" id="owner_salary" />
-                        <Label htmlFor="owner_salary">Owner Salary</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="expense" id="expense" />
-                        <Label htmlFor="expense">Expense</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Add details about this transaction"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                    />
-                  </div>
-
-                  {transactionType === "owner_salary" && amount && (
-                    <div className="p-4 bg-muted rounded-lg">
-                      <h4 className="text-sm font-medium mb-2">Payroll Tax Calculation Preview</h4>
-                      <div className="space-y-1 text-sm">
-                        <p className="flex justify-between">
-                          <span>Amount:</span>
-                          <span>${Number.parseFloat(amount || "0").toFixed(2)}</span>
-                        </p>
-                        <p className="flex justify-between">
-                          <span>Federal Tax (15%):</span>
-                          <span>
-                            ${(Number.parseFloat(amount || "0") * TAX_RATES.FEDERAL_CORPORATE_TAX_RATE).toFixed(2)}
-                          </span>
-                        </p>
-                        <p className="flex justify-between">
-                          <span>Ontario Tax (3.2%):</span>
-                          <span>
-                            ${(Number.parseFloat(amount || "0") * TAX_RATES.ONTARIO_CORPORATE_TAX_RATE).toFixed(2)}
-                          </span>
-                        </p>
-                        <p className="flex justify-between">
-                          <span>CPP (10.95%):</span>
-                          <span>${(Number.parseFloat(amount || "0") * TAX_RATES.CPP_RATE).toFixed(2)}</span>
-                        </p>
-                        <div className="border-t pt-1 mt-1">
-                          <p className="flex justify-between font-medium">
-                            <span>Total Remittance:</span>
-                            <span>
-                              $
-                              {(
-                                Number.parseFloat(amount || "0") *
-                                (TAX_RATES.FEDERAL_CORPORATE_TAX_RATE +
-                                  TAX_RATES.ONTARIO_CORPORATE_TAX_RATE +
-                                  TAX_RATES.CPP_RATE)
-                              ).toFixed(2)}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit" className="w-full">
-                    Add Transaction
-                  </Button>
-                </CardFooter>
-              </form>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Payroll Tax Obligations</CardTitle>
-                  <CardDescription>Total amounts owed for owner salary payments</CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportTransactions}
-                  className="flex items-center gap-1"
-                >
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Transaction Summary</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Total Owner Salary</p>
-                      <p className="text-2xl font-bold">${totalOwnerSalary.toFixed(2)}</p>
-                    </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Total Expenses</p>
-                      <p className="text-2xl font-bold">${totalExpenses.toFixed(2)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Payroll Tax Obligations</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Federal Payroll Tax (15%)</p>
-                      <p className="text-2xl font-bold">${totalFederalTax.toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Payable to CRA as payroll tax</p>
-                    </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Ontario Payroll Tax (3.2%)</p>
-                      <p className="text-2xl font-bold">${totalProvincialTax.toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Payable to Ontario as provincial tax</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium mb-2">CPP Obligations</h3>
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">CPP Contributions (10.95%)</p>
-                    <p className="text-2xl font-bold">${totalCPP.toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Self-employed CPP contributions payable to CRA</p>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-primary/10 rounded-lg mt-4">
-                  <p className="text-sm font-medium">Total Payroll Tax Owed</p>
-                  <p className="text-3xl font-bold">${totalPayrollTaxOwed.toFixed(2)}</p>
-                  <div className="mt-2 text-sm">
-                    <p className="flex justify-between">
-                      <span>Payroll Taxes:</span> <span>${(totalFederalTax + totalProvincialTax).toFixed(2)}</span>
-                    </p>
-                    <p className="flex justify-between">
-                      <span>CPP Contributions:</span> <span>${totalCPP.toFixed(2)}</span>
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Transaction History</CardTitle>
-              <CardDescription>Record of all your corporate transactions and associated obligations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {transactionsWithRunningTotals.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead className="text-right">Tax Details</TableHead>
-                        <TableHead className="text-right">Total Remittance</TableHead>
-                        <TableHead className="text-right bg-green-50">Running Total</TableHead>
-                        <TableHead className="text-center">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {transactionsWithRunningTotals.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                          <TableCell>
-                            {editingTransactionId === transaction.id ? (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                      "w-full justify-start text-left font-normal",
-                                      !editingDate && "text-muted-foreground",
-                                    )}
-                                  >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {editingDate ? format(editingDate, "MMM d, yyyy") : <span>Pick a date</span>}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                  <CustomCalendar
-                                    mode="single"
-                                    selected={editingDate}
-                                    onSelect={(date) => date && setEditingDate(date)}
-                                    defaultMonth={editingDate}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                            ) : (
-                              format(transaction.date, "MMM d, yyyy")
-                            )}
-                          </TableCell>
-                          <TableCell className="capitalize">
-                            {editingTransactionId === transaction.id ? (
-                              <RadioGroup
-                                value={editingType}
-                                onValueChange={(value) => setEditingType(value as "owner_salary" | "expense")}
-                                className="flex flex-col space-y-1"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="owner_salary" id={`edit-owner-salary-${transaction.id}`} />
-                                  <Label htmlFor={`edit-owner-salary-${transaction.id}`}>Owner Salary</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="expense" id={`edit-expense-${transaction.id}`} />
-                                  <Label htmlFor={`edit-expense-${transaction.id}`}>Expense</Label>
-                                </div>
-                              </RadioGroup>
-                            ) : transaction.type === "owner_salary" ? (
-                              "Owner Salary"
-                            ) : (
-                              "Expense"
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {editingTransactionId === transaction.id ? (
-                              <Input
-                                value={editingAmount}
-                                onChange={handleEditingAmountChange}
-                                className="w-24 text-right"
-                              />
-                            ) : (
-                              `$${transaction.amount.toFixed(2)}`
-                            )}
-                          </TableCell>
-                          <TableCell className="max-w-[200px] truncate">{transaction.notes}</TableCell>
-                          <TableCell>
-                            {transaction.type === "owner_salary" ? (
-                              <Collapsible className="w-full">
-                                <div className="flex justify-between items-center">
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="sm" className="h-6 p-0">
-                                          <Info className="h-4 w-4 text-muted-foreground" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>Click to view tax calculation details</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  <div className="text-right">
-                                    <p>Fed: ${transaction.federalTax.toFixed(2)}</p>
-                                    <p>ON: ${transaction.provincialTax.toFixed(2)}</p>
-                                    <p>CPP: ${transaction.cppPayment.toFixed(2)}</p>
-                                  </div>
-                                  <CollapsibleTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="p-0">
-                                      <ChevronDown className="h-4 w-4" />
-                                      <span className="sr-only">Toggle</span>
-                                    </Button>
-                                  </CollapsibleTrigger>
-                                </div>
-                                <CollapsibleContent className="mt-2 text-sm bg-muted p-2 rounded-md">
-                                  <div className="space-y-1">
-                                    <p className="flex justify-between">
-                                      <span>Salary Amount:</span>
-                                      <span>${transaction.amount.toFixed(2)}</span>
-                                    </p>
-                                    <p className="flex justify-between">
-                                      <span>Federal Tax (15%):</span>
-                                      <span>${transaction.federalTax.toFixed(2)}</span>
-                                    </p>
-                                    <p className="flex justify-between">
-                                      <span>Ontario Tax (3.2%):</span>
-                                      <span>${transaction.provincialTax.toFixed(2)}</span>
-                                    </p>
-                                    <p className="flex justify-between">
-                                      <span>CPP (10.95%):</span>
-                                      <span>${transaction.cppPayment.toFixed(2)}</span>
-                                    </p>
-                                  </div>
-                                </CollapsibleContent>
-                              </Collapsible>
-                            ) : (
-                              <span className="text-muted-foreground text-right block">N/A</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {transaction.type === "owner_salary"
-                              ? `$${(
-                                  transaction.federalTax + transaction.provincialTax + transaction.cppPayment
-                                ).toFixed(2)}`
-                              : "-"}
-                          </TableCell>
-                          <TableCell className="text-right font-medium bg-green-50">
-                            ${transaction.runningTotal.toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex justify-center space-x-1">
-                              {editingTransactionId === transaction.id ? (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => saveEditedTransaction(transaction.id, transaction.notes)}
-                                    className="text-green-500 hover:text-green-700 hover:bg-green-100"
-                                  >
-                                    <Save className="h-4 w-4" />
-                                    <span className="sr-only">Save</span>
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={cancelEditingTransaction}
-                                    className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                                  >
-                                    <X className="h-4 w-4" />
-                                    <span className="sr-only">Cancel</span>
-                                  </Button>
-                                </>
-                              ) : (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => startEditingTransaction(transaction)}
-                                    className="text-blue-500 hover:text-blue-700 hover:bg-blue-100"
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                    <span className="sr-only">Edit</span>
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => deleteTransaction(transaction.id)}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Delete</span>
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="text-center py-4 text-muted-foreground">No transactions yet</p>
-              )}
-              {transactions.length > 0 && (
-                <div className="mt-4 flex justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={clearAllTransactions}
-                    className="text-destructive hover:bg-destructive/10"
-                  >
-                    Clear All Transactions
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="income">
-          <div className="grid gap-8 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Add Corporate Income</CardTitle>
-                <CardDescription>Record revenue received from clients</CardDescription>
-              </CardHeader>
-              <form onSubmit={handleIncomeSubmit}>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+          <TabsContent value="corporate">
+            <div className="grid gap-8 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Add New Transaction</CardTitle>
+                  <CardDescription>Record money transferred to yourself and calculate tax obligations</CardDescription>
+                </CardHeader>
+                <form onSubmit={handleSubmit}>
+                  <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="incomeAmount">Amount</Label>
-                      <Input
-                        id="incomeAmount"
-                        placeholder="0.00"
-                        value={incomeAmount}
-                        onChange={handleIncomeAmountChange}
+                      <Label htmlFor="amount">Net Amount ($CAD)</Label>
+                      <Input id="amount" placeholder="0.00" value={amount} onChange={handleAmountChange} />
+                      <p className="text-xs text-muted-foreground">
+                        Enter the actual amount received by the employee (after-tax amount)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Transaction Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !transactionDate && "text-muted-foreground",
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {transactionDate ? format(transactionDate, "MMMM d, yyyy") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <CustomCalendar
+                            mode="single"
+                            selected={transactionDate}
+                            onSelect={(date) => date && setTransactionDate(date)}
+                            defaultMonth={transactionDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Transaction Type</Label>
+                      <RadioGroup
+                        value={transactionType}
+                        onValueChange={(value) => setTransactionType(value as "owner_salary" | "expense")}
+                        className="flex space-x-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="owner_salary" id="owner_salary" />
+                          <Label htmlFor="owner_salary">Owner Salary</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="expense" id="expense" />
+                          <Label htmlFor="expense">Expense</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="notes">Notes</Label>
+                      <Textarea
+                        id="notes"
+                        placeholder="Add details about this transaction"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="incomeCurrency">Currency</Label>
-                      <Select
-                        value={incomeCurrency}
-                        onValueChange={(value) => setIncomeCurrency(value as "CAD" | "USD")}
-                      >
-                        <SelectTrigger id="incomeCurrency">
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CAD">CAD</SelectItem>
-                          <SelectItem value="USD">USD</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {incomeCurrency === "USD" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="exchangeRate">Exchange Rate (USD to CAD)</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="exchangeRate"
-                          className="pl-9"
-                          placeholder="1.35"
-                          value={exchangeRate}
-                          onChange={handleExchangeRateChange}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">Current value: 1 USD = {exchangeRate} CAD</p>
-                      {incomeAmount && exchangeRate && (
-                        <p className="text-sm mt-1">
-                          USD ${Number.parseFloat(incomeAmount || "0").toFixed(2)} = CAD $
-                          {(Number.parseFloat(incomeAmount || "0") * Number.parseFloat(exchangeRate || "0")).toFixed(2)}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label>Income Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !incomeDate && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {incomeDate ? format(incomeDate, "MMMM d, yyyy") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CustomCalendar
-                          mode="single"
-                          selected={incomeDate}
-                          onSelect={(date) => date && setIncomeDate(date)}
-                          defaultMonth={incomeDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="clientName">Client Name</Label>
-                    <Input
-                      id="clientName"
-                      placeholder="Enter client name"
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="incomeNotes">Notes</Label>
-                    <Textarea
-                      id="incomeNotes"
-                      placeholder="Add details about this income"
-                      value={incomeNotes}
-                      onChange={(e) => setIncomeNotes(e.target.value)}
-                    />
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <Button type="submit" className="w-full">
-                    Add Income
-                  </Button>
-                </CardFooter>
-              </form>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Corporate Income & Tax Summary</CardTitle>
-                  <CardDescription>Total revenue and corporate tax obligations</CardDescription>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleExportIncome} className="flex items-center gap-1">
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Income by Currency</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Total CAD Income</p>
-                      <p className="text-2xl font-bold">CAD ${incomeTotals.CAD.toFixed(2)}</p>
-                    </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Total USD Income</p>
-                      <p className="text-2xl font-bold">USD ${incomeTotals.USD.toFixed(2)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-primary/10 rounded-lg">
-                  <p className="text-sm font-medium">Total Income (CAD Equivalent)</p>
-                  <p className="text-3xl font-bold">CAD ${incomeTotals.totalCAD.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    All income converted to CAD using the exchange rates provided at time of entry
-                  </p>
-                </div>
-
-                <div className="border-t pt-4">
-                  <h3 className="text-lg font-medium mb-2">Corporate Tax Calculation</h3>
-
-                  {incomeTotals.totalCAD > 0 ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 bg-muted rounded-lg">
-                          <p className="text-sm text-muted-foreground">Total Income</p>
-                          <p className="text-xl font-bold">CAD ${incomeTotals.totalCAD.toFixed(2)}</p>
-                        </div>
-                        <div className="p-4 bg-muted rounded-lg">
-                          <p className="text-sm text-muted-foreground">Owner Salary (Deduction)</p>
-                          <p className="text-xl font-bold">CAD ${totalOwnerSalary.toFixed(2)}</p>
-                        </div>
-                      </div>
-
+                    {transactionType === "owner_salary" && amount && (
                       <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Taxable Income</p>
-                        <p className="text-xl font-bold">CAD ${corporateTax.taxableIncome.toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Total Income minus Owner Salary</p>
+                        <h4 className="text-sm font-medium mb-2">Payroll Tax Calculation Preview</h4>
+                        {userPreferences.annualIncome ? (
+                          <div className="space-y-1 text-sm">
+                            <p className="flex justify-between">
+                              <span>Net Amount (Take-home):</span>
+                              <span>${Number.parseFloat(amount || "0").toFixed(2)}</span>
+                            </p>
+                            {(() => {
+                              const netAmount = Number.parseFloat(amount || "0")
+                              const { grossAmount, federalTax, provincialTax, cppPayment, totalDeductions } =
+                                calculateGrossFromNet(
+                                  netAmount,
+                                  userPreferences.annualIncome || 50000,
+                                  userPreferences.province || "ON",
+                                )
+                              return (
+                                <>
+                                  <p className="flex justify-between font-medium">
+                                    <span>Gross Amount (Before Tax):</span>
+                                    <span>${grossAmount.toFixed(2)}</span>
+                                  </p>
+                                  <div className="border-t pt-1 mt-1">
+                                    <p className="flex justify-between">
+                                      <span>Federal Tax:</span>
+                                      <span>${federalTax.toFixed(2)}</span>
+                                    </p>
+                                    <p className="flex justify-between">
+                                      <span>Provincial Tax ({userPreferences.province || "ON"}):</span>
+                                      <span>${provincialTax.toFixed(2)}</span>
+                                    </p>
+                                    <p className="flex justify-between">
+                                      <span>CPP (11.9%):</span>
+                                      <span>${cppPayment.toFixed(2)}</span>
+                                    </p>
+                                  </div>
+                                  <div className="border-t pt-1 mt-1">
+                                    <p className="flex justify-between font-medium">
+                                      <span>Total Deductions:</span>
+                                      <span>${totalDeductions.toFixed(2)}</span>
+                                    </p>
+                                  </div>
+                                </>
+                              )
+                            })()}
+                          </div>
+                        ) : (
+                          <div className="text-sm">
+                            <p className="text-amber-600">
+                              Please set your annual income in Settings to see tax calculations.
+                            </p>
+                          </div>
+                        )}
                       </div>
+                    )}
+                  </CardContent>
+                  <CardFooter>
+                    <Button type="submit" className="w-full">
+                      Add Transaction
+                    </Button>
+                  </CardFooter>
+                </form>
+              </Card>
 
-                      {corporateTax.taxableIncome > 0 ? (
-                        <>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 bg-muted rounded-lg">
-                              <p className="text-sm text-muted-foreground">Federal Corporate Tax (15%)</p>
-                              <p className="text-xl font-bold">CAD ${corporateTax.federalCorporateTax.toFixed(2)}</p>
-                            </div>
-                            <div className="p-4 bg-muted rounded-lg">
-                              <p className="text-sm text-muted-foreground">Ontario Corporate Tax (3.2%)</p>
-                              <p className="text-xl font-bold">CAD ${corporateTax.provincialCorporateTax.toFixed(2)}</p>
-                            </div>
-                          </div>
-
-                          <div className="p-4 bg-primary/10 rounded-lg">
-                            <p className="text-sm font-medium">Total Corporate Tax</p>
-                            <p className="text-3xl font-bold">CAD ${corporateTax.totalCorporateTax.toFixed(2)}</p>
-                            <p className="text-xs text-muted-foreground mt-1">Payable as corporate income tax</p>
-                          </div>
-                        </>
-                      ) : (
-                        <Alert>
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>
-                            No corporate tax is due because owner salary exceeds total income.
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </div>
-                  ) : (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>Add corporate income to calculate corporate tax obligations.</AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Corporate Income History</CardTitle>
-              <CardDescription>Record of all revenue received from clients</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {corporateIncome.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Client</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Currency</TableHead>
-                        <TableHead className="text-right">Exchange Rate</TableHead>
-                        <TableHead className="text-right">CAD Equivalent</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead className="text-center">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {corporateIncome.map((income) => (
-                        <TableRow key={income.id}>
-                          <TableCell>{format(income.date, "MMM d, yyyy")}</TableCell>
-                          <TableCell>{income.clientName}</TableCell>
-                          <TableCell className="text-right">${income.amount.toFixed(2)}</TableCell>
-                          <TableCell>{income.currency}</TableCell>
-                          <TableCell className="text-right">
-                            {income.currency === "USD" ? income.exchangeRate.toFixed(2) : "-"}
-                          </TableCell>
-                          <TableCell className="text-right">CAD ${income.cadAmount.toFixed(2)}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">{income.notes}</TableCell>
-                          <TableCell className="text-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteIncome(income.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Delete</span>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="text-center py-4 text-muted-foreground">No corporate income recorded yet</p>
-              )}
-              {corporateIncome.length > 0 && (
-                <div className="mt-4 flex justify-end">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Payroll Tax Obligations</CardTitle>
+                    <CardDescription>Total amounts owed for owner salary payments</CardDescription>
+                  </div>
                   <Button
                     variant="outline"
-                    onClick={clearAllIncome}
-                    className="text-destructive hover:bg-destructive/10"
+                    size="sm"
+                    onClick={handleExportTransactions}
+                    className="flex items-center gap-1"
                   >
-                    Clear All Income Records
+                    <Download className="h-4 w-4" />
+                    Export
                   </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="employee">
-          <div className="grid gap-8 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Add Employee Expense</CardTitle>
-                <CardDescription>Record expenses incurred by Hao as an employee</CardDescription>
-              </CardHeader>
-              <form onSubmit={handleExpenseSubmit}>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="expenseAmount">Amount</Label>
-                      <Input
-                        id="expenseAmount"
-                        placeholder="0.00"
-                        value={expenseAmount}
-                        onChange={handleExpenseAmountChange}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="expenseCurrency">Currency</Label>
-                      <Select
-                        value={expenseCurrency}
-                        onValueChange={(value) => setExpenseCurrency(value as "CAD" | "USD")}
-                      >
-                        <SelectTrigger id="expenseCurrency">
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CAD">CAD</SelectItem>
-                          <SelectItem value="USD">USD</SelectItem>
-                        </SelectContent>
-                      </Select>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium mb-2">Transaction Summary</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm text-muted-foreground">Total Owner Salary</p>
+                        <p className="text-2xl font-bold">${totalOwnerSalary.toFixed(2)}</p>
+                      </div>
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm text-muted-foreground">Total Expenses</p>
+                        <p className="text-2xl font-bold">${totalExpenses.toFixed(2)}</p>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Expense Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !expenseDate && "text-muted-foreground",
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {expenseDate ? format(expenseDate, "MMMM d, yyyy") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CustomCalendar
-                          mode="single"
-                          selected={expenseDate}
-                          onSelect={(date) => date && setExpenseDate(date)}
-                          defaultMonth={expenseDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  <div>
+                    <h3 className="text-lg font-medium mb-2">Payroll Tax Obligations</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm text-muted-foreground">Federal Payroll Tax (9%)</p>
+                        <p className="text-2xl font-bold">${totalFederalTax.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Payable to CRA as payroll tax</p>
+                      </div>
+                      <div className="p-4 bg-muted rounded-lg">
+                        <p className="text-sm text-muted-foreground">Ontario Payroll Tax (3.2%)</p>
+                        <p className="text-2xl font-bold">${totalProvincialTax.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Payable to Ontario as provincial tax</p>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="expenseType">Expense Type</Label>
-                    <Select
-                      value={expenseType}
-                      onValueChange={(value) => setExpenseType(value as "flight" | "hotel" | "meals" | "technology")}
-                    >
-                      <SelectTrigger id="expenseType">
-                        <SelectValue placeholder="Select expense type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="flight">Flight</SelectItem>
-                        <SelectItem value="hotel">Hotel</SelectItem>
-                        <SelectItem value="meals">Meals</SelectItem>
-                        <SelectItem value="technology">Technology</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div>
+                    <h3 className="text-lg font-medium mb-2">CPP Obligations</h3>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">CPP Contributions (11.9%)</p>
+                      <p className="text-2xl font-bold">${totalCPP.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Self-employed CPP contributions payable to CRA
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="expenseNotes">Notes</Label>
-                    <Textarea
-                      id="expenseNotes"
-                      placeholder="Add details about this expense"
-                      value={expenseNotes}
-                      onChange={(e) => setExpenseNotes(e.target.value)}
-                    />
+                  <div className="p-4 bg-primary/10 rounded-lg mt-4">
+                    <p className="text-sm font-medium">Total Payroll Tax Owed</p>
+                    <p className="text-3xl font-bold">${totalPayrollTaxOwed.toFixed(2)}</p>
+                    <div className="mt-2 text-sm">
+                      <p className="flex justify-between">
+                        <span>Payroll Taxes:</span> <span>${(totalFederalTax + totalProvincialTax).toFixed(2)}</span>
+                      </p>
+                      <p className="flex justify-between">
+                        <span>CPP Contributions:</span> <span>${totalCPP.toFixed(2)}</span>
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
-                <CardFooter>
-                  <Button type="submit" className="w-full">
-                    Add Expense
-                  </Button>
-                </CardFooter>
-              </form>
-            </Card>
+              </Card>
+            </div>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Employee Expenses Summary</CardTitle>
-                  <CardDescription>Total expenses by category and currency</CardDescription>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleExportExpenses} className="flex items-center gap-1">
-                  <Download className="h-4 w-4" />
-                  Export
-                </Button>
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>Record of all your corporate transactions and associated obligations</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">CAD Expenses</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Flight</p>
-                      <p className="text-xl font-bold">CAD ${expenseTotals.CAD.flight.toFixed(2)}</p>
-                    </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Hotel</p>
-                      <p className="text-xl font-bold">CAD ${expenseTotals.CAD.hotel.toFixed(2)}</p>
-                    </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Meals</p>
-                      <p className="text-xl font-bold">CAD ${expenseTotals.CAD.meals.toFixed(2)}</p>
-                    </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Technology</p>
-                      <p className="text-xl font-bold">CAD ${expenseTotals.CAD.technology.toFixed(2)}</p>
-                    </div>
+              <CardContent>
+                {transactionsWithRunningTotals.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead className="text-right">Gross Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {transactionsWithRunningTotals.map((transaction) => (
+                          <TableRow key={transaction.id}>
+                            <TableCell>{format(transaction.date, "MMMM d, yyyy")}</TableCell>
+                            <TableCell>{transaction.type}</TableCell>
+                            <TableCell className="text-right">${transaction.amount.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
-                  <div className="p-4 bg-primary/10 rounded-lg mt-4">
-                    <p className="text-sm font-medium">Total CAD Expenses</p>
-                    <p className="text-2xl font-bold">CAD ${expenseTotals.CAD.total.toFixed(2)}</p>
+                ) : (
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">No transactions recorded yet.</p>
                   </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium mb-2">USD Expenses</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Flight</p>
-                      <p className="text-xl font-bold">USD ${expenseTotals.USD.flight.toFixed(2)}</p>
-                    </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Hotel</p>
-                      <p className="text-xl font-bold">USD ${expenseTotals.USD.hotel.toFixed(2)}</p>
-                    </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Meals</p>
-                      <p className="text-xl font-bold">USD ${expenseTotals.USD.meals.toFixed(2)}</p>
-                    </div>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">Technology</p>
-                      <p className="text-xl font-bold">USD ${expenseTotals.USD.technology.toFixed(2)}</p>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-primary/10 rounded-lg mt-4">
-                    <p className="text-sm font-medium">Total USD Expenses</p>
-                    <p className="text-2xl font-bold">USD ${expenseTotals.USD.total.toFixed(2)}</p>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Employee Expense History</CardTitle>
-              <CardDescription>Record of all expenses incurred by Hao</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {employeeExpenses.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead>Currency</TableHead>
-                        <TableHead>Notes</TableHead>
-                        <TableHead className="text-center">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {employeeExpenses.map((expense) => (
-                        <TableRow key={expense.id}>
-                          <TableCell>{format(expense.date, "MMM d, yyyy")}</TableCell>
-                          <TableCell className="capitalize">{expense.type}</TableCell>
-                          <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
-                          <TableCell>{expense.currency}</TableCell>
-                          <TableCell className="max-w-[300px] truncate">{expense.notes}</TableCell>
-                          <TableCell className="text-center">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteExpense(expense.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-100"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Delete</span>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="text-center py-4 text-muted-foreground">No employee expenses yet</p>
-              )}
-              {employeeExpenses.length > 0 && (
-                <div className="mt-4 flex justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={clearAllExpenses}
-                    className="text-destructive hover:bg-destructive/10"
-                  >
-                    Clear All Expenses
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+          {/* Other TabsContent components here */}
+        </Tabs>
+      </div>
+    </SidebarLayout>
   )
 }

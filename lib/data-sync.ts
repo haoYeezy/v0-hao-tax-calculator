@@ -6,6 +6,7 @@ const prepareTransactionForStorage = (transaction: Transaction, userId: string) 
   id: transaction.id,
   date: transaction.date.toISOString(),
   amount: transaction.amount,
+  // Remove the net_amount field since it doesn't exist in the database schema
   type: transaction.type,
   notes: transaction.notes,
   federal_tax: transaction.federalTax,
@@ -41,6 +42,8 @@ const parseTransactionFromStorage = (data: any): Transaction => ({
   id: data.id,
   date: new Date(data.date),
   amount: Number(data.amount),
+  // Calculate netAmount from amount if it's not in the database
+  netAmount: data.net_amount ? Number(data.net_amount) : Number(data.amount) * 0.75, // Estimate net as 75% of gross
   type: data.type as "owner_salary" | "expense",
   notes: data.notes || "",
   federalTax: Number(data.federal_tax),
@@ -77,6 +80,10 @@ export const saveUserPreferences = async (preferences: UserPreferences) => {
     last_transaction_date: preferences.lastTransactionDate?.toISOString(),
     last_expense_date: preferences.lastExpenseDate?.toISOString(),
     last_income_date: preferences.lastIncomeDate?.toISOString(),
+    business_name: preferences.businessName,
+    employee_name: preferences.employeeName,
+    province: preferences.province,
+    annual_income: preferences.annualIncome,
   })
 
   if (error) {
@@ -89,19 +96,37 @@ export const saveUserPreferences = async (preferences: UserPreferences) => {
 
 // Get user preferences
 export const getUserPreferences = async (): Promise<UserPreferences> => {
-  const userId = await getUserId()
+  try {
+    const userId = await getUserId()
 
-  const { data, error } = await supabase.from("user_preferences").select("*").eq("user_id", userId).single()
+    const { data, error } = await supabase.from("user_preferences").select("*").eq("user_id", userId)
 
-  if (error) {
-    console.error("Error fetching user preferences:", error)
+    // Instead of using .single(), we'll handle the response manually
+    if (error) {
+      console.error("Error fetching user preferences:", error)
+      return {}
+    }
+
+    // If no data or empty array, return empty preferences
+    if (!data || data.length === 0) {
+      return {}
+    }
+
+    // Use the first record if multiple exist
+    const prefs = data[0]
+
+    return {
+      lastTransactionDate: prefs.last_transaction_date ? new Date(prefs.last_transaction_date) : undefined,
+      lastExpenseDate: prefs.last_expense_date ? new Date(prefs.last_expense_date) : undefined,
+      lastIncomeDate: prefs.last_income_date ? new Date(prefs.last_income_date) : undefined,
+      businessName: prefs.business_name || undefined,
+      employeeName: prefs.employee_name || undefined,
+      province: prefs.province || undefined,
+      annualIncome: prefs.annual_income || undefined,
+    }
+  } catch (error) {
+    console.error("Error in getUserPreferences:", error)
     return {}
-  }
-
-  return {
-    lastTransactionDate: data.last_transaction_date ? new Date(data.last_transaction_date) : undefined,
-    lastExpenseDate: data.last_expense_date ? new Date(data.last_expense_date) : undefined,
-    lastIncomeDate: data.last_income_date ? new Date(data.last_income_date) : undefined,
   }
 }
 

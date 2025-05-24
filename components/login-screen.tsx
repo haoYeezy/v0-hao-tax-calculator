@@ -47,11 +47,11 @@ export const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                 className="circular-text-char"
                 style={{
                   transform: `rotate(${i * 15}deg)`,
-                  transformOrigin: "0 80px",
+                  transformOrigin: "0 100px", // Increase this value to move text further out
                   position: "absolute",
                   left: "50%",
-                  top: "-10px",
-                  height: "80px",
+                  top: "-40px", // Move text up by changing this from -10px to -40px
+                  height: "100px", // Increase height from 80px to 100px
                   fontFamily: "Impact, sans-serif",
                   fontSize: "18px",
                   fontWeight: "bold",
@@ -66,7 +66,7 @@ export const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
           </div>
         </div>
 
-        <CardHeader className="space-y-1 pt-16 mt-8">
+        <CardHeader className="space-y-1 pt-20 mt-8">
           <CardTitle className="text-2xl text-center">Hi Hao</CardTitle>
           <CardDescription className="text-center">An application built for a single person: me.</CardDescription>
         </CardHeader>
