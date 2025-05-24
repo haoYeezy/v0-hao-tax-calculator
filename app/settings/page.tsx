@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle, Info } from 'lucide-react'
+import { CheckCircle, Info } from "lucide-react"
 import { getUserPreferences, saveUserPreferences } from "@/lib/data-sync"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const [businessName, setBusinessName] = useState("")
   const [employeeName, setEmployeeName] = useState("")
   const [province, setProvince] = useState<string>("ON")
-  const [annualIncome, setAnnualIncome = useState<number | undefined>()
+  const [annualIncome, setAnnualIncome] = useState<number | undefined>()
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle")
 
   // Load existing preferences
@@ -112,10 +112,7 @@ export default function SettingsPage() {
 
           <div className="space-y-2">
             <Label htmlFor="province">Province</Label>
-            <Select
-              value={province || "ON"}
-              onValueChange={(value) => setProvince(value)}
-            >
+            <Select value={province || "ON"} onValueChange={(value) => setProvince(value)}>
               <SelectTrigger id="province">
                 <SelectValue placeholder="Select province" />
               </SelectTrigger>
@@ -132,9 +129,7 @@ export default function SettingsPage() {
                 <SelectItem value="SK">Saskatchewan</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-muted-foreground">
-              Province used for tax calculations
-            </p>
+            <p className="text-sm text-muted-foreground">Province used for tax calculations</p>
           </div>
 
           <div className="space-y-2">
@@ -146,9 +141,7 @@ export default function SettingsPage() {
               value={annualIncome || ""}
               onChange={(e) => setAnnualIncome(e.target.value ? Number(e.target.value) : undefined)}
             />
-            <p className="text-sm text-muted-foreground">
-              Used to calculate appropriate tax rates
-            </p>
+            <p className="text-sm text-muted-foreground">Used to calculate appropriate tax rates</p>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">

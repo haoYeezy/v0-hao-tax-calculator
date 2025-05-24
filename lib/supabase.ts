@@ -7,24 +7,32 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 // Check if we have the required environment variables
 const hasSupabaseCredentials = supabaseUrl && supabaseAnonKey
 
+// Create a comprehensive mock client for when credentials are missing
+const createMockSupabaseClient = () => {
+  const mockResponse = { data: null, error: null }
+
+  const mockQuery = {
+    select: () => mockQuery,
+    eq: () => mockQuery,
+    single: async () => mockResponse,
+    delete: async () => mockResponse,
+    upsert: async () => mockResponse,
+    insert: async () => mockResponse,
+    update: async () => mockResponse,
+  }
+
+  return {
+    auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
+    },
+    from: () => mockQuery,
+  }
+}
+
 // Create a mock client or real client based on available credentials
 export const supabase = hasSupabaseCredentials
   ? createClient(supabaseUrl, supabaseAnonKey)
-  : ({
-      // Mock implementation for when credentials are missing
-      auth: {
-        getUser: async () => ({ data: { user: null }, error: null }),
-      },
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            single: async () => ({ data: null, error: null }),
-          }),
-          delete: async () => ({ error: null }),
-          upsert: async () => ({ error: null }),
-        }),
-      }),
-    } as any)
+  : (createMockSupabaseClient() as any)
 
 // Helper function to get the current user
 export const getCurrentUser = async () => {
