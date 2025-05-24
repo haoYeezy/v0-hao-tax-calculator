@@ -45,6 +45,8 @@ import {
 // Add this import at the top of the file with the other imports
 
 import { calculateGrossFromNet } from "@/lib/tax-calculator"
+// Add this import at the top with the other imports
+import { TransactionDetail } from "@/components/transaction-detail"
 
 // Tax rates for 2024-2025 (simplified for demonstration)
 const TAX_RATES = {
@@ -148,6 +150,10 @@ export default function TransactionTracker() {
     }
     return []
   })
+
+  // Add these state variables inside the TransactionTracker component, after the other state declarations
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
+  const [isTransactionDetailOpen, setIsTransactionDetailOpen] = useState(false)
 
   // Check if user is logged in on component mount
   useEffect(() => {
@@ -654,6 +660,27 @@ export default function TransactionTracker() {
     totalCAD: corporateIncome.reduce((sum, i) => sum + i.cadAmount, 0),
   }
 
+  // Add these functions inside the TransactionTracker component, before the return statement
+
+  // Open transaction detail
+  const openTransactionDetail = (transaction: Transaction) => {
+    setSelectedTransaction(transaction)
+    setIsTransactionDetailOpen(true)
+  }
+
+  // Update transaction
+  const updateTransaction = async (updatedTransaction: Transaction) => {
+    const updatedTransactions = transactions.map((t) => (t.id === updatedTransaction.id ? updatedTransaction : t))
+
+    setTransactions(updatedTransactions)
+
+    // Sync with Supabase
+    await syncTransactions(updatedTransactions)
+
+    // Close the detail view
+    setIsTransactionDetailOpen(false)
+  }
+
   if (!isLoggedIn) {
     return <LoginScreen onLogin={handleLogin} />
   }
@@ -941,6 +968,7 @@ export default function TransactionTracker() {
                 <CardTitle>Transaction History</CardTitle>
                 <CardDescription>Record of all your corporate transactions and associated obligations</CardDescription>
               </CardHeader>
+
               <CardContent>
                 {transactionsWithRunningTotals.length > 0 ? (
                   <div className="overflow-x-auto">
@@ -950,14 +978,20 @@ export default function TransactionTracker() {
                           <TableHead>Date</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead className="text-right">Gross Amount</TableHead>
+                          <TableHead className="text-right">Net Amount</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {transactionsWithRunningTotals.map((transaction) => (
-                          <TableRow key={transaction.id}>
+                          <TableRow
+                            key={transaction.id}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => openTransactionDetail(transaction)}
+                          >
                             <TableCell>{format(transaction.date, "MMMM d, yyyy")}</TableCell>
-                            <TableCell>{transaction.type}</TableCell>
+                            <TableCell>{transaction.type === "owner_salary" ? "Owner Salary" : "Expense"}</TableCell>
                             <TableCell className="text-right">${transaction.amount.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">${transaction.netAmount.toFixed(2)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -975,6 +1009,20 @@ export default function TransactionTracker() {
           {/* Other TabsContent components here */}
         </Tabs>
       </div>
+
+      {selectedTransaction && (
+        <TransactionDetail
+          transaction={selectedTransaction}
+          isOpen={isTransactionDetailOpen}
+          onClose={() => setIsTransactionDetailOpen(false)}
+          onDelete={deleteTransaction}
+          onUpdate={updateTransaction}
+          userPreferences={{
+            annualIncome: userPreferences.annualIncome,
+            province: userPreferences.province,
+          }}
+        />
+      )}
     </SidebarLayout>
   )
 }
