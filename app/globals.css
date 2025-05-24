@@ -92,30 +92,3 @@ body {
     @apply bg-background text-foreground;
   }
 }
-
-/* Add this to your globals.css file */
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.circular-text-container {
-  position: absolute;
-  top: -10px; /* Change from 16px to -10px to move it up */
-  left: 50%;
-  transform: translateX(-50%);
-  width: 200px; /* Increase from 160px to 200px */
-  height: 200px; /* Increase from 160px to 200px */
-  pointer-events: none;
-}
-
-.circular-text {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  animation: rotate 20s linear infinite;
-}

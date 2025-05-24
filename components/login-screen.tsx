@@ -24,46 +24,15 @@ export const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 to-green-600">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center opacity-10">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <span key={i} className="text-6xl mx-4 animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}>
-              💵
-            </span>
-          ))}
-        </div>
-      </div>
+      <div className="absolute inset-0 bg-gradient-to-br from-green-400/20 to-green-600/20 pointer-events-none" />
 
       <Card className="w-96 shadow-xl relative">
         <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 w-32 h-32 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
           <span className="text-4xl">💰</span>
         </div>
 
-        <div className="circular-text-container">
-          <div className="circular-text">
-            {Array.from("HAOS' TAX TRACKER").map((char, i) => (
-              <span
-                key={i}
-                className="circular-text-char"
-                style={{
-                  transform: `rotate(${i * 15}deg)`,
-                  transformOrigin: "0 100px", // Increase this value to move text further out
-                  position: "absolute",
-                  left: "50%",
-                  top: "-40px", // Move text up by changing this from -10px to -40px
-                  height: "100px", // Increase height from 80px to 100px
-                  fontFamily: "Impact, sans-serif",
-                  fontSize: "18px",
-                  fontWeight: "bold",
-                  color: "#c0c0c0",
-                  textShadow: "2px 2px 4px rgba(0,0,0,0.3), 0 0 10px rgba(255,255,255,0.5)",
-                  WebkitTextStroke: "1px #808080",
-                }}
-              >
-                {char}
-              </span>
-            ))}
-          </div>
+        <div className="absolute top-0 left-0 right-0 text-center pt-6">
+          <h1 className="text-2xl font-bold text-white">HAO'S TAX TRACKER</h1>
         </div>
 
         <CardHeader className="space-y-1 pt-20 mt-8">
