@@ -17,8 +17,6 @@ import { cn } from "@/lib/utils"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LoginScreen } from "@/components/login-screen"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { SidebarLayout } from "@/components/sidebar-layout"
 import type { Transaction, EmployeeExpense, CorporateIncome, UserPreferences } from "@/types/schema"
 import {
   syncTransactions,
@@ -686,336 +684,278 @@ export default function TransactionTracker() {
   }
 
   return (
-    <SidebarLayout
-      sidebarContent={
-        <>
-          <div className="px-4 py-6">
-            <h2 className="mb-2 font-semibold">{businessName}</h2>
-            <p className="text-sm text-muted-foreground">Manage your business finances and track tax obligations.</p>
-          </div>
-          <div className="space-y-1">
-            <Button variant="ghost" className="w-full justify-start">
-              Dashboard
-            </Button>
-            <Collapsible className="w-full">
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start">
-                  Explainer
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pl-4">
-                <p className="text-sm text-muted-foreground">Detailed explanations of tax calculations.</p>
-              </CollapsibleContent>
-            </Collapsible>
-            <Button variant="ghost" className="w-full justify-start">
-              Tax Rates
-            </Button>
-            <Button variant="ghost" className="w-full justify-start">
-              Settings
-            </Button>
-          </div>
-          <div className="mt-6 px-4 space-y-2">
-            <Button
-              variant="outline"
-              onClick={syncDataWithSupabase}
-              disabled={isSyncing}
-              className={cn(
-                "w-full flex items-center gap-2",
-                syncStatus === "success" && "text-green-600",
-                syncStatus === "error" && "text-red-600",
-              )}
-            >
-              {syncStatus === "idle" && "Sync Data"}
-              {syncStatus === "syncing" && "Syncing..."}
-              {syncStatus === "success" && "Synced!"}
-              {syncStatus === "error" && "Sync Failed"}
-            </Button>
-            <Button variant="outline" onClick={handleExportAll} className="w-full flex items-center gap-2">
-              Export All
-            </Button>
-            <Button variant="outline" onClick={handleLogout} className="w-full flex items-center gap-2">
-              Logout
-            </Button>
-          </div>
-        </>
-      }
-    >
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-center">Hao's Business Tracker</h1>
-        </div>
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Hao's Business Tracker</h1>
+      </div>
 
-        <Tabs defaultValue="corporate" className="mb-8">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="corporate">Corporate Transactions</TabsTrigger>
-            <TabsTrigger value="income">Corporate Income</TabsTrigger>
-            <TabsTrigger value="employee">Employee Expenses</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="corporate" className="mb-8">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="corporate">Corporate Transactions</TabsTrigger>
+          <TabsTrigger value="income">Corporate Income</TabsTrigger>
+          <TabsTrigger value="employee">Employee Expenses</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="corporate">
-            <div className="grid gap-8 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Add New Transaction</CardTitle>
-                  <CardDescription>Record money transferred to yourself and calculate tax obligations</CardDescription>
-                </CardHeader>
-                <form onSubmit={handleSubmit}>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="amount">Net Amount ($CAD)</Label>
-                      <Input id="amount" placeholder="0.00" value={amount} onChange={handleAmountChange} />
-                      <p className="text-xs text-muted-foreground">
-                        Enter the actual amount received by the employee (after-tax amount)
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Transaction Date</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full justify-start text-left font-normal",
-                              !transactionDate && "text-muted-foreground",
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {transactionDate ? format(transactionDate, "MMMM d, yyyy") : <span>Pick a date</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <CustomCalendar
-                            mode="single"
-                            selected={transactionDate}
-                            onSelect={(date) => date && setTransactionDate(date)}
-                            defaultMonth={transactionDate}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Transaction Type</Label>
-                      <RadioGroup
-                        value={transactionType}
-                        onValueChange={(value) => setTransactionType(value as "owner_salary" | "expense")}
-                        className="flex space-x-4"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="owner_salary" id="owner_salary" />
-                          <Label htmlFor="owner_salary">Owner Salary</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="expense" id="expense" />
-                          <Label htmlFor="expense">Expense</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="notes">Notes</Label>
-                      <Textarea
-                        id="notes"
-                        placeholder="Add details about this transaction"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                      />
-                    </div>
-
-                    {transactionType === "owner_salary" && amount && (
-                      <div className="p-4 bg-muted rounded-lg">
-                        <h4 className="text-sm font-medium mb-2">Payroll Tax Calculation Preview</h4>
-                        {userPreferences.annualIncome ? (
-                          <div className="space-y-1 text-sm">
-                            <p className="flex justify-between">
-                              <span>Net Amount (Take-home):</span>
-                              <span>${Number.parseFloat(amount || "0").toFixed(2)}</span>
-                            </p>
-                            {(() => {
-                              const netAmount = Number.parseFloat(amount || "0")
-                              const { grossAmount, federalTax, provincialTax, cppPayment, totalDeductions } =
-                                calculateGrossFromNet(
-                                  netAmount,
-                                  userPreferences.annualIncome || 50000,
-                                  userPreferences.province || "ON",
-                                )
-                              return (
-                                <>
-                                  <p className="flex justify-between font-medium">
-                                    <span>Gross Amount (Before Tax):</span>
-                                    <span>${grossAmount.toFixed(2)}</span>
-                                  </p>
-                                  <div className="border-t pt-1 mt-1">
-                                    <p className="flex justify-between">
-                                      <span>
-                                        Federal Tax (based on ${userPreferences.annualIncome.toLocaleString()} annual
-                                        income):
-                                      </span>
-                                      <span>${federalTax.toFixed(2)}</span>
-                                    </p>
-                                    <p className="flex justify-between">
-                                      <span>Provincial Tax ({userPreferences.province || "ON"}):</span>
-                                      <span>${provincialTax.toFixed(2)}</span>
-                                    </p>
-                                    <p className="flex justify-between">
-                                      <span>CPP (11.9%):</span>
-                                      <span>${cppPayment.toFixed(2)}</span>
-                                    </p>
-                                  </div>
-                                  <div className="border-t pt-1 mt-1">
-                                    <p className="flex justify-between font-medium">
-                                      <span>Total Deductions:</span>
-                                      <span>${totalDeductions.toFixed(2)}</span>
-                                    </p>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground mt-2">
-                                    Tax rates are based on your projected annual income, not this individual
-                                    transaction.
-                                  </p>
-                                </>
-                              )
-                            })()}
-                          </div>
-                        ) : (
-                          <div className="text-sm">
-                            <p className="text-amber-600">
-                              Please set your annual income in Settings to see tax calculations.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                  <CardFooter>
-                    <Button type="submit" className="w-full">
-                      Add Transaction
-                    </Button>
-                  </CardFooter>
-                </form>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Payroll Tax Obligations</CardTitle>
-                    <CardDescription>Total amounts owed for owner salary payments</CardDescription>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleExportTransactions}
-                    className="flex items-center gap-1"
-                  >
-                    <Download className="h-4 w-4" />
-                    Export
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium mb-2">Transaction Summary</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Total Owner Salary</p>
-                        <p className="text-2xl font-bold">${totalOwnerSalary.toFixed(2)}</p>
-                      </div>
-                      <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Total Expenses</p>
-                        <p className="text-2xl font-bold">${totalExpenses.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-medium mb-2">Payroll Tax Obligations</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Federal Payroll Tax (9%)</p>
-                        <p className="text-2xl font-bold">${totalFederalTax.toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Payable to CRA as payroll tax</p>
-                      </div>
-                      <div className="p-4 bg-muted rounded-lg">
-                        <p className="text-sm text-muted-foreground">Ontario Payroll Tax (3.2%)</p>
-                        <p className="text-2xl font-bold">${totalProvincialTax.toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Payable to Ontario as provincial tax</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-medium mb-2">CPP Obligations</h3>
-                    <div className="p-4 bg-muted rounded-lg">
-                      <p className="text-sm text-muted-foreground">CPP Contributions (11.9%)</p>
-                      <p className="text-2xl font-bold">${totalCPP.toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Self-employed CPP contributions payable to CRA
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-primary/10 rounded-lg mt-4">
-                    <p className="text-sm font-medium">Total Payroll Tax Owed</p>
-                    <p className="text-3xl font-bold">${totalPayrollTaxOwed.toFixed(2)}</p>
-                    <div className="mt-2 text-sm">
-                      <p className="flex justify-between">
-                        <span>Payroll Taxes:</span> <span>${(totalFederalTax + totalProvincialTax).toFixed(2)}</span>
-                      </p>
-                      <p className="flex justify-between">
-                        <span>CPP Contributions:</span> <span>${totalCPP.toFixed(2)}</span>
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="mt-8">
+        <TabsContent value="corporate">
+          <div className="grid gap-8 md:grid-cols-2">
+            <Card>
               <CardHeader>
-                <CardTitle>Transaction History</CardTitle>
-                <CardDescription>Record of all your corporate transactions and associated obligations</CardDescription>
+                <CardTitle>Add New Transaction</CardTitle>
+                <CardDescription>Record money transferred to yourself and calculate tax obligations</CardDescription>
               </CardHeader>
+              <form onSubmit={handleSubmit}>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Net Amount ($CAD)</Label>
+                    <Input id="amount" placeholder="0.00" value={amount} onChange={handleAmountChange} />
+                    <p className="text-xs text-muted-foreground">
+                      Enter the actual amount received by the employee (after-tax amount)
+                    </p>
+                  </div>
 
-              <CardContent>
-                {transactionsWithRunningTotals.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead className="text-right">Gross Amount</TableHead>
-                          <TableHead className="text-right">Net Amount</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {transactionsWithRunningTotals.map((transaction) => (
-                          <TableRow
-                            key={transaction.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => openTransactionDetail(transaction)}
-                          >
-                            <TableCell>{format(transaction.date, "MMMM d, yyyy")}</TableCell>
-                            <TableCell>{transaction.type === "owner_salary" ? "Owner Salary" : "Expense"}</TableCell>
-                            <TableCell className="text-right">${transaction.amount.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">${transaction.netAmount.toFixed(2)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                  <div className="space-y-2">
+                    <Label>Transaction Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !transactionDate && "text-muted-foreground",
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {transactionDate ? format(transactionDate, "MMMM d, yyyy") : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CustomCalendar
+                          mode="single"
+                          selected={transactionDate}
+                          onSelect={(date) => date && setTransactionDate(date)}
+                          defaultMonth={transactionDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
-                ) : (
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">No transactions recorded yet.</p>
+
+                  <div className="space-y-2">
+                    <Label>Transaction Type</Label>
+                    <RadioGroup
+                      value={transactionType}
+                      onValueChange={(value) => setTransactionType(value as "owner_salary" | "expense")}
+                      className="flex space-x-4"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="owner_salary" id="owner_salary" />
+                        <Label htmlFor="owner_salary">Owner Salary</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="expense" id="expense" />
+                        <Label htmlFor="expense">Expense</Label>
+                      </div>
+                    </RadioGroup>
                   </div>
-                )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Add details about this transaction"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                    />
+                  </div>
+
+                  {transactionType === "owner_salary" && amount && (
+                    <div className="p-4 bg-muted rounded-lg">
+                      <h4 className="text-sm font-medium mb-2">Payroll Tax Calculation Preview</h4>
+                      {userPreferences.annualIncome ? (
+                        <div className="space-y-1 text-sm">
+                          <p className="flex justify-between">
+                            <span>Net Amount (Take-home):</span>
+                            <span>${Number.parseFloat(amount || "0").toFixed(2)}</span>
+                          </p>
+                          {(() => {
+                            const netAmount = Number.parseFloat(amount || "0")
+                            const { grossAmount, federalTax, provincialTax, cppPayment, totalDeductions } =
+                              calculateGrossFromNet(
+                                netAmount,
+                                userPreferences.annualIncome || 50000,
+                                userPreferences.province || "ON",
+                              )
+                            return (
+                              <>
+                                <p className="flex justify-between font-medium">
+                                  <span>Gross Amount (Before Tax):</span>
+                                  <span>${grossAmount.toFixed(2)}</span>
+                                </p>
+                                <div className="border-t pt-1 mt-1">
+                                  <p className="flex justify-between">
+                                    <span>
+                                      Federal Tax (based on ${userPreferences.annualIncome.toLocaleString()} annual
+                                      income):
+                                    </span>
+                                    <span>${federalTax.toFixed(2)}</span>
+                                  </p>
+                                  <p className="flex justify-between">
+                                    <span>Provincial Tax ({userPreferences.province || "ON"}):</span>
+                                    <span>${provincialTax.toFixed(2)}</span>
+                                  </p>
+                                  <p className="flex justify-between">
+                                    <span>CPP (11.9%):</span>
+                                    <span>${cppPayment.toFixed(2)}</span>
+                                  </p>
+                                </div>
+                                <div className="border-t pt-1 mt-1">
+                                  <p className="flex justify-between font-medium">
+                                    <span>Total Deductions:</span>
+                                    <span>${totalDeductions.toFixed(2)}</span>
+                                  </p>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Tax rates are based on your projected annual income, not this individual transaction.
+                                </p>
+                              </>
+                            )
+                          })()}
+                        </div>
+                      ) : (
+                        <div className="text-sm">
+                          <p className="text-amber-600">
+                            Please set your annual income in Settings to see tax calculations.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter>
+                  <Button type="submit" className="w-full">
+                    Add Transaction
+                  </Button>
+                </CardFooter>
+              </form>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Payroll Tax Obligations</CardTitle>
+                  <CardDescription>Total amounts owed for owner salary payments</CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportTransactions}
+                  className="flex items-center gap-1"
+                >
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Transaction Summary</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Total Owner Salary</p>
+                      <p className="text-2xl font-bold">${totalOwnerSalary.toFixed(2)}</p>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Total Expenses</p>
+                      <p className="text-2xl font-bold">${totalExpenses.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Payroll Tax Obligations</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Federal Payroll Tax (9%)</p>
+                      <p className="text-2xl font-bold">${totalFederalTax.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Payable to CRA as payroll tax</p>
+                    </div>
+                    <div className="p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">Ontario Payroll Tax (3.2%)</p>
+                      <p className="text-2xl font-bold">${totalProvincialTax.toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Payable to Ontario as provincial tax</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-medium mb-2">CPP Obligations</h3>
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">CPP Contributions (11.9%)</p>
+                    <p className="text-2xl font-bold">${totalCPP.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Self-employed CPP contributions payable to CRA</p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-primary/10 rounded-lg mt-4">
+                  <p className="text-sm font-medium">Total Payroll Tax Owed</p>
+                  <p className="text-3xl font-bold">${totalPayrollTaxOwed.toFixed(2)}</p>
+                  <div className="mt-2 text-sm">
+                    <p className="flex justify-between">
+                      <span>Payroll Taxes:</span> <span>${(totalFederalTax + totalProvincialTax).toFixed(2)}</span>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>CPP Contributions:</span> <span>${totalCPP.toFixed(2)}</span>
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
 
-          {/* Other TabsContent components here */}
-        </Tabs>
-      </div>
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle>Transaction History</CardTitle>
+              <CardDescription>Record of all your corporate transactions and associated obligations</CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              {transactionsWithRunningTotals.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">Gross Amount</TableHead>
+                        <TableHead className="text-right">Net Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transactionsWithRunningTotals.map((transaction) => (
+                        <TableRow
+                          key={transaction.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => openTransactionDetail(transaction)}
+                        >
+                          <TableCell>{format(transaction.date, "MMMM d, yyyy")}</TableCell>
+                          <TableCell>{transaction.type === "owner_salary" ? "Owner Salary" : "Expense"}</TableCell>
+                          <TableCell className="text-right">${transaction.amount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">${transaction.netAmount.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">No transactions recorded yet.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Other TabsContent components here */}
+      </Tabs>
 
       {selectedTransaction && (
         <TransactionDetail
@@ -1030,6 +970,6 @@ export default function TransactionTracker() {
           }}
         />
       )}
-    </SidebarLayout>
+    </div>
   )
 }
