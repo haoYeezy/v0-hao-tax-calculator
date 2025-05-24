@@ -71,30 +71,102 @@ const parseIncomeFromStorage = (data: any): CorporateIncome => ({
   notes: data.notes || "",
 })
 
-// Save user preferences
+// Save user preferences with error handling for missing columns
 export const saveUserPreferences = async (preferences: UserPreferences) => {
   const userId = await getUserId()
 
-  const { data, error } = await supabase.from("user_preferences").upsert({
+  // Prepare the data object with only the fields that exist in the database
+  const preferencesData: any = {
     user_id: userId,
-    last_transaction_date: preferences.lastTransactionDate?.toISOString(),
-    last_expense_date: preferences.lastExpenseDate?.toISOString(),
-    last_income_date: preferences.lastIncomeDate?.toISOString(),
-    business_name: preferences.businessName,
-    employee_name: preferences.employeeName,
-    province: preferences.province,
-    annual_income: preferences.annualIncome,
-  })
-
-  if (error) {
-    console.error("Error saving user preferences:", error)
-    return false
   }
 
-  return true
+  // Only add fields if they have values
+  if (preferences.lastTransactionDate) {
+    preferencesData.last_transaction_date = preferences.lastTransactionDate.toISOString()
+  }
+  if (preferences.lastExpenseDate) {
+    preferencesData.last_expense_date = preferences.lastExpenseDate.toISOString()
+  }
+  if (preferences.lastIncomeDate) {
+    preferencesData.last_income_date = preferences.lastIncomeDate.toISOString()
+  }
+  if (preferences.businessName) {
+    preferencesData.business_name = preferences.businessName
+  }
+  if (preferences.employeeName) {
+    preferencesData.employee_name = preferences.employeeName
+  }
+  if (preferences.province) {
+    preferencesData.province = preferences.province
+  }
+
+  // Try to save annual_income, but handle gracefully if column doesn't exist
+  if (preferences.annualIncome) {
+    try {
+      preferencesData.annual_income = preferences.annualIncome
+      const { data, error } = await supabase.from("user_preferences").upsert(preferencesData)
+
+      if (error) {
+        // If it's a column not found error for annual_income, try without it
+        if (error.message.includes("annual_income")) {
+          console.warn("annual_income column not found, saving without it")
+          delete preferencesData.annual_income
+          const { data: retryData, error: retryError } = await supabase.from("user_preferences").upsert(preferencesData)
+
+          if (retryError) {
+            console.error("Error saving user preferences (retry):", retryError)
+            return false
+          }
+
+          // Store annual income in localStorage as fallback
+          if (preferences.annualIncome) {
+            localStorage.setItem("userAnnualIncome", preferences.annualIncome.toString())
+          }
+
+          return true
+        } else {
+          console.error("Error saving user preferences:", error)
+          return false
+        }
+      }
+
+      return true
+    } catch (error) {
+      console.error("Error saving user preferences:", error)
+
+      // Fallback: store annual income in localStorage
+      if (preferences.annualIncome) {
+        localStorage.setItem("userAnnualIncome", preferences.annualIncome.toString())
+      }
+
+      // Try to save other preferences without annual_income
+      delete preferencesData.annual_income
+      try {
+        const { data, error } = await supabase.from("user_preferences").upsert(preferencesData)
+        if (error) {
+          console.error("Error saving user preferences (fallback):", error)
+          return false
+        }
+        return true
+      } catch (fallbackError) {
+        console.error("Error saving user preferences (fallback):", fallbackError)
+        return false
+      }
+    }
+  } else {
+    // No annual income to save, proceed normally
+    const { data, error } = await supabase.from("user_preferences").upsert(preferencesData)
+
+    if (error) {
+      console.error("Error saving user preferences:", error)
+      return false
+    }
+
+    return true
+  }
 }
 
-// Get user preferences
+// Get user preferences with fallback for annual income
 export const getUserPreferences = async (): Promise<UserPreferences> => {
   try {
     const userId = await getUserId()
@@ -104,16 +176,30 @@ export const getUserPreferences = async (): Promise<UserPreferences> => {
     // Instead of using .single(), we'll handle the response manually
     if (error) {
       console.error("Error fetching user preferences:", error)
-      return {}
+      // Return preferences with localStorage fallback for annual income
+      const fallbackAnnualIncome = localStorage.getItem("userAnnualIncome")
+      return {
+        annualIncome: fallbackAnnualIncome ? Number(fallbackAnnualIncome) : undefined,
+      }
     }
 
-    // If no data or empty array, return empty preferences
+    // If no data or empty array, return empty preferences with localStorage fallback
     if (!data || data.length === 0) {
-      return {}
+      const fallbackAnnualIncome = localStorage.getItem("userAnnualIncome")
+      return {
+        annualIncome: fallbackAnnualIncome ? Number(fallbackAnnualIncome) : undefined,
+      }
     }
 
     // Use the first record if multiple exist
     const prefs = data[0]
+
+    // Get annual income from database or localStorage fallback
+    let annualIncome = prefs.annual_income ? Number(prefs.annual_income) : undefined
+    if (!annualIncome) {
+      const fallbackAnnualIncome = localStorage.getItem("userAnnualIncome")
+      annualIncome = fallbackAnnualIncome ? Number(fallbackAnnualIncome) : undefined
+    }
 
     return {
       lastTransactionDate: prefs.last_transaction_date ? new Date(prefs.last_transaction_date) : undefined,
@@ -122,11 +208,15 @@ export const getUserPreferences = async (): Promise<UserPreferences> => {
       businessName: prefs.business_name || undefined,
       employeeName: prefs.employee_name || undefined,
       province: prefs.province || undefined,
-      annualIncome: prefs.annual_income || undefined,
+      annualIncome: annualIncome,
     }
   } catch (error) {
     console.error("Error in getUserPreferences:", error)
-    return {}
+    // Return preferences with localStorage fallback for annual income
+    const fallbackAnnualIncome = localStorage.getItem("userAnnualIncome")
+    return {
+      annualIncome: fallbackAnnualIncome ? Number(fallbackAnnualIncome) : undefined,
+    }
   }
 }
 
