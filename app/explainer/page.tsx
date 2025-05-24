@@ -97,7 +97,7 @@ export default function ExplainerPage() {
                 <ul className="list-disc pl-6 space-y-2">
                   <li>
                     <strong>Personal Income Tax:</strong> Federal and provincial taxes on owner salary based on personal
-                    tax rates.
+                    tax rates determined by your projected annual income.
                   </li>
                   <li>
                     <strong>CPP Contributions:</strong> Canada Pension Plan contributions for self-employed individuals.
@@ -157,30 +157,48 @@ export default function ExplainerPage() {
               </div>
 
               <div className="p-4 bg-muted rounded-lg">
-                <h3 className="font-medium mb-2">Federal Payroll Tax</h3>
-                <p className="mb-2">Federal payroll tax is calculated at 15% of the gross salary amount.</p>
+                <h3 className="font-medium mb-2">Federal Income Tax</h3>
+                <p className="mb-2">
+                  Federal income tax is calculated using the marginal tax rate based on your projected annual income.
+                  This ensures that the tax calculation accurately reflects your tax bracket.
+                </p>
                 <div className="bg-white p-3 rounded border">
-                  <p className="font-mono">Federal Tax = Salary Amount × 0.15</p>
+                  <p className="font-mono">Federal Tax = Gross Salary × Marginal Federal Tax Rate</p>
                 </div>
+                <p className="mt-2 text-sm">
+                  For example, if your annual income is $75,000, you would be in the 20.5% federal tax bracket (for
+                  income between $55,867 and $111,733 in 2024).
+                </p>
               </div>
 
               <div className="p-4 bg-muted rounded-lg">
                 <h3 className="font-medium mb-2">{province} Provincial Tax</h3>
-                <p className="mb-2">{province} provincial tax is calculated at 3.2% of the gross salary amount.</p>
+                <p className="mb-2">
+                  Provincial tax is also calculated using the marginal tax rate based on your projected annual income,
+                  using the tax brackets for your province.
+                </p>
                 <div className="bg-white p-3 rounded border">
-                  <p className="font-mono">Provincial Tax = Salary Amount × 0.032</p>
+                  <p className="font-mono">Provincial Tax = Gross Salary × Marginal Provincial Tax Rate</p>
                 </div>
+                <p className="mt-2 text-sm">
+                  For example, if your annual income is $75,000 in Ontario, you would be in the 9.15% provincial tax
+                  bracket (for income between $49,231 and $98,463 in 2024).
+                </p>
               </div>
 
               <div className="p-4 bg-muted rounded-lg">
                 <h3 className="font-medium mb-2">CPP Contributions</h3>
                 <p className="mb-2">
                   As a self-employed individual, {employeeName} must contribute both the employee and employer portions
-                  of CPP, totaling 10.95% for 2024.
+                  of CPP, totaling 11.9% for 2024.
                 </p>
                 <div className="bg-white p-3 rounded border">
-                  <p className="font-mono">CPP Contribution = Salary Amount × 0.1095</p>
+                  <p className="font-mono">CPP Contribution = Gross Salary × 0.119</p>
                 </div>
+                <p className="mt-2 text-sm">
+                  CPP contributions are subject to a maximum annual contribution based on the Year's Maximum Pensionable
+                  Earnings (YMPE), which is $68,500 for 2024.
+                </p>
               </div>
 
               <div className="p-4 bg-primary/10 rounded-lg">
@@ -196,8 +214,11 @@ export default function ExplainerPage() {
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  These calculations are simplified for tracking purposes. Actual tax filings may require additional
-                  adjustments based on specific circumstances.
+                  <p>
+                    <strong>Important:</strong> This application uses your projected annual income (set in Settings) to
+                    determine the appropriate tax brackets. This ensures that your tax calculations are based on your
+                    actual tax situation, not just the individual transaction amounts.
+                  </p>
                 </AlertDescription>
               </Alert>
             </CardContent>
@@ -306,12 +327,16 @@ export default function ExplainerPage() {
               <div className="p-4 bg-muted rounded-lg">
                 <h3 className="font-medium mb-2">Marginal vs. Effective Tax Rates</h3>
                 <p className="mb-2">
-                  The application calculates both marginal tax rates (the rate on the next dollar earned) and effective
-                  tax rates (the average rate on all income).
+                  <strong>Marginal tax rate</strong> is the rate of tax applied to your next dollar of income. This is
+                  determined by which tax bracket your income falls into.
                 </p>
                 <p className="mb-2">
-                  For net-to-gross calculations, the effective tax rate is used to more accurately determine the gross
-                  amount needed.
+                  <strong>Effective tax rate</strong> is the average rate of tax on your total income, calculated as
+                  total tax divided by total income.
+                </p>
+                <p className="mb-2">
+                  This application uses the <strong>marginal tax rate</strong> for calculating taxes on salary payments,
+                  which is more accurate for determining taxes on additional income.
                 </p>
               </div>
 
@@ -323,7 +348,7 @@ export default function ExplainerPage() {
                 </p>
                 <div className="bg-white p-3 rounded border">
                   <p className="font-mono">
-                    Gross Amount = Net Amount ÷ (1 - (Federal Rate + Provincial Rate + CPP Rate))
+                    Gross Amount = Net Amount ÷ (1 - (Marginal Federal Rate + Marginal Provincial Rate + CPP Rate))
                   </p>
                 </div>
                 <p className="mt-2 text-sm">
