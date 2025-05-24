@@ -10,6 +10,8 @@ import { getUserPreferences } from "@/lib/data-sync"
 export default function ExplainerPage() {
   const [businessName, setBusinessName] = useState("Your Business")
   const [employeeName, setEmployeeName] = useState("Hao")
+  const [province, setProvince] = useState("Ontario")
+  const [annualIncome, setAnnualIncome] = useState<number | undefined>()
 
   // Load business and employee names from user preferences
   useEffect(() => {
@@ -20,6 +22,25 @@ export default function ExplainerPage() {
       }
       if (prefs.employeeName) {
         setEmployeeName(prefs.employeeName)
+      }
+      if (prefs.province) {
+        // Convert province code to full name
+        const provinceNames: Record<string, string> = {
+          AB: "Alberta",
+          BC: "British Columbia",
+          MB: "Manitoba",
+          NB: "New Brunswick",
+          NL: "Newfoundland and Labrador",
+          NS: "Nova Scotia",
+          ON: "Ontario",
+          PE: "Prince Edward Island",
+          QC: "Quebec",
+          SK: "Saskatchewan",
+        }
+        setProvince(provinceNames[prefs.province] || "Ontario")
+      }
+      if (prefs.annualIncome) {
+        setAnnualIncome(prefs.annualIncome)
       }
     }
 
@@ -42,9 +63,10 @@ export default function ExplainerPage() {
       </Alert>
 
       <Tabs defaultValue="overview">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="payroll">Payroll Taxes</TabsTrigger>
+          <TabsTrigger value="personal">Personal Income Tax</TabsTrigger>
           <TabsTrigger value="corporate">Corporate Tax</TabsTrigger>
           <TabsTrigger value="expenses">Employee Expenses</TabsTrigger>
         </TabsList>
@@ -74,7 +96,8 @@ export default function ExplainerPage() {
                 <h3 className="font-medium mb-2">Key Tax Calculations</h3>
                 <ul className="list-disc pl-6 space-y-2">
                   <li>
-                    <strong>Payroll Taxes:</strong> Federal and provincial taxes on owner salary payments.
+                    <strong>Personal Income Tax:</strong> Federal and provincial taxes on owner salary based on personal
+                    tax rates.
                   </li>
                   <li>
                     <strong>CPP Contributions:</strong> Canada Pension Plan contributions for self-employed individuals.
@@ -119,6 +142,21 @@ export default function ExplainerPage() {
               </p>
 
               <div className="p-4 bg-muted rounded-lg">
+                <h3 className="font-medium mb-2">Net vs. Gross Salary</h3>
+                <p className="mb-2">
+                  This application allows you to enter the <strong>net amount</strong> (take-home pay) and automatically
+                  calculates the <strong>gross amount</strong> (before-tax salary) that needs to be paid to achieve that
+                  net amount.
+                </p>
+                <div className="bg-white p-3 rounded border">
+                  <p className="font-mono">Gross Salary = Net Salary ÷ (1 - Combined Tax Rate)</p>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  The combined tax rate includes federal and provincial income tax plus CPP contributions.
+                </p>
+              </div>
+
+              <div className="p-4 bg-muted rounded-lg">
                 <h3 className="font-medium mb-2">Federal Payroll Tax</h3>
                 <p className="mb-2">Federal payroll tax is calculated at 15% of the gross salary amount.</p>
                 <div className="bg-white p-3 rounded border">
@@ -127,8 +165,8 @@ export default function ExplainerPage() {
               </div>
 
               <div className="p-4 bg-muted rounded-lg">
-                <h3 className="font-medium mb-2">Ontario Provincial Tax</h3>
-                <p className="mb-2">Ontario provincial tax is calculated at 3.2% of the gross salary amount.</p>
+                <h3 className="font-medium mb-2">{province} Provincial Tax</h3>
+                <p className="mb-2">{province} provincial tax is calculated at 3.2% of the gross salary amount.</p>
                 <div className="bg-white p-3 rounded border">
                   <p className="font-mono">Provincial Tax = Salary Amount × 0.032</p>
                 </div>
@@ -166,6 +204,145 @@ export default function ExplainerPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="personal" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Personal Income Tax Calculation</CardTitle>
+              <CardDescription>How personal income tax is calculated for net-to-gross conversion</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p>
+                This application uses personal income tax rates to calculate the gross salary amount needed to achieve a
+                desired net (take-home) pay. The calculation is based on:
+              </p>
+
+              <div className="p-4 bg-muted rounded-lg">
+                <h3 className="font-medium mb-2">Annual Income Setting</h3>
+                <p className="mb-2">
+                  Your anticipated annual income ({annualIncome ? `$${annualIncome.toLocaleString()}` : "not set"})
+                  determines which tax brackets apply to your income.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  This setting can be adjusted in the Settings page and affects all tax calculations.
+                </p>
+              </div>
+
+              <div className="p-4 bg-muted rounded-lg">
+                <h3 className="font-medium mb-2">Federal Income Tax Brackets (2024)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2">Income Range</th>
+                        <th className="text-right py-2">Tax Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b">
+                        <td className="py-2">$0 to $55,867</td>
+                        <td className="text-right">15%</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2">$55,867 to $111,733</td>
+                        <td className="text-right">20.5%</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2">$111,733 to $173,205</td>
+                        <td className="text-right">26%</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2">$173,205 to $246,752</td>
+                        <td className="text-right">29%</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2">Over $246,752</td>
+                        <td className="text-right">33%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="p-4 bg-muted rounded-lg">
+                <h3 className="font-medium mb-2">{province} Provincial Income Tax Brackets (2024)</h3>
+                {province === "Ontario" ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2">Income Range</th>
+                          <th className="text-right py-2">Tax Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b">
+                          <td className="py-2">$0 to $49,231</td>
+                          <td className="text-right">5.05%</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2">$49,231 to $98,463</td>
+                          <td className="text-right">9.15%</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2">$98,463 to $150,000</td>
+                          <td className="text-right">11.16%</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2">$150,000 to $220,000</td>
+                          <td className="text-right">12.16%</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2">Over $220,000</td>
+                          <td className="text-right">13.16%</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p>Tax brackets for {province} are applied based on the current provincial rates.</p>
+                )}
+              </div>
+
+              <div className="p-4 bg-muted rounded-lg">
+                <h3 className="font-medium mb-2">Marginal vs. Effective Tax Rates</h3>
+                <p className="mb-2">
+                  The application calculates both marginal tax rates (the rate on the next dollar earned) and effective
+                  tax rates (the average rate on all income).
+                </p>
+                <p className="mb-2">
+                  For net-to-gross calculations, the effective tax rate is used to more accurately determine the gross
+                  amount needed.
+                </p>
+              </div>
+
+              <div className="p-4 bg-primary/10 rounded-lg">
+                <h3 className="font-medium mb-2">Net-to-Gross Calculation</h3>
+                <p className="mb-2">
+                  When you enter a net amount (take-home pay), the application calculates the gross amount using this
+                  formula:
+                </p>
+                <div className="bg-white p-3 rounded border">
+                  <p className="font-mono">
+                    Gross Amount = Net Amount ÷ (1 - (Federal Rate + Provincial Rate + CPP Rate))
+                  </p>
+                </div>
+                <p className="mt-2 text-sm">
+                  This ensures that after all taxes and CPP contributions are deducted, the employee receives exactly
+                  the net amount specified.
+                </p>
+              </div>
+
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  The application uses simplified tax calculations. For precise tax planning, consult with a tax
+                  professional who can account for all deductions, credits, and specific circumstances.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="corporate" className="space-y-6">
           <Card>
             <CardHeader>
@@ -191,17 +368,17 @@ export default function ExplainerPage() {
               <div className="p-4 bg-muted rounded-lg">
                 <h3 className="font-medium mb-2">Federal Corporate Tax</h3>
                 <p className="mb-2">
-                  Federal corporate tax for small businesses is calculated at 15% of taxable income.
+                  Federal corporate tax for small businesses is calculated at 9% of taxable income.
                 </p>
                 <div className="bg-white p-3 rounded border">
-                  <p className="font-mono">Federal Corporate Tax = Taxable Income × 0.15</p>
+                  <p className="font-mono">Federal Corporate Tax = Taxable Income × 0.09</p>
                 </div>
               </div>
 
               <div className="p-4 bg-muted rounded-lg">
-                <h3 className="font-medium mb-2">Ontario Provincial Corporate Tax</h3>
+                <h3 className="font-medium mb-2">{province} Provincial Corporate Tax</h3>
                 <p className="mb-2">
-                  Ontario provincial corporate tax for small businesses is calculated at 3.2% of taxable income.
+                  {province} provincial corporate tax for small businesses is calculated at 3.2% of taxable income.
                 </p>
                 <div className="bg-white p-3 rounded border">
                   <p className="font-mono">Provincial Corporate Tax = Taxable Income × 0.032</p>
